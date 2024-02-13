@@ -1,3 +1,6 @@
+import { getTemplate } from "./lazy-table.template.js";
+import { lazyTableService } from "./lazy-table.service.js"
+
 customElements.define('lazy-table', class extends HTMLElement {
     static observedAttributes = ['size'];
 
@@ -7,22 +10,7 @@ customElements.define('lazy-table', class extends HTMLElement {
         this.ACCEPTED_FILE_TYPE = 'text/csv';
 
         this.attachShadow({ mode: 'open' });
-
-        this.shadowRoot.innerHTML = `
-            <style> @import url(${new URL('./lazy-table.css', import.meta.url)}); </style>
-            
-            <div class="flex-column">
-                <label for="file-selector">Upload CSV</label>
-                <input id="file-selector" type="file" accept="${this.ACCEPTED_FILE_TYPE}">
-            </div>
-                
-            <progress class="hidden w-full" value="0" max="100"></progress>
-            
-            <table>
-                <thead></thead>
-                <tbody></tbody>
-            </table>
-        `;
+        this.shadowRoot.innerHTML = getTemplate.apply(this);
 
         this.size = 25;
         this.pageIndex = 0;
@@ -46,6 +34,23 @@ customElements.define('lazy-table', class extends HTMLElement {
         });
     }
 
+    setHeaders(value) {
+        this.thead.replaceChildren();
+
+        if (value.length) {
+            const inputListenerCallback = (input) => {
+                // TODO: keep track of filter on multiple fields,
+                this.csvWorker.postMessage({
+                    type: 'search',
+                    key: input.getAttribute('data-key'),
+                    value: input.value
+                })
+            }
+            const nodes = lazyTableService.generateTableHeaderNodes(value, inputListenerCallback);
+            this.thead.append(...nodes);
+        }
+    }
+
     setValues(value) {
         this.tbody.replaceChildren();
         this.pageIndex = 0;
@@ -53,38 +58,8 @@ customElements.define('lazy-table', class extends HTMLElement {
         if (value.length) this.loadPage(value);
     }
 
-    setHeaders(value) {
-        this.thead.replaceChildren();
-
-        if (value.length) {
-            const nodes = Array(value.length - 1);
-
-            value.forEach((header, i) => {
-                const node = document.createElement('th');
-                node.innerText = header.label;
-                nodes[i] = (node);
-            })
-
-            this.shadowRoot.querySelector('thead').append(...nodes);
-        }
-    }
-
     loadPage(values) {
-        const rowNodes = Array(this.size);
-
-        values.forEach((rowValue, i) => {
-            const row = document.createElement('tr');
-
-            for (const cellValue in rowValue) {
-                const node = document.createElement('td');
-                node.innerText = rowValue[cellValue];
-                row.append(node);
-            }
-
-            rowNodes[i] = row;
-        })
-
-        this.tbody.append(...rowNodes);
+        this.tbody.append(...lazyTableService.generateTableRowNodes(values));
         this.intersectionObserver.observe(this.tbody.lastElementChild);
     }
 
@@ -98,6 +73,10 @@ customElements.define('lazy-table', class extends HTMLElement {
         if (type === 'pageValuesLoaded') {
             this.loadPage(value.pageValues);
             if (value.lastPage) this.intersectionObserver.disconnect();
+        }
+
+        if (type === 'searchResults') {
+            this.setValues(value);
         }
 
         if (type === 'progress') {
