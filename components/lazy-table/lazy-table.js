@@ -1,5 +1,4 @@
-import { getTemplate } from "./lazy-table.template.js";
-import { lazyTableService } from "./lazy-table.service.js"
+import templateService from "./template.service.js"
 
 customElements.define('lazy-table', class extends HTMLElement {
     static observedAttributes = ['size'];
@@ -10,10 +9,11 @@ customElements.define('lazy-table', class extends HTMLElement {
         this.ACCEPTED_FILE_TYPE = 'text/csv';
 
         this.attachShadow({ mode: 'open' });
-        this.shadowRoot.innerHTML = getTemplate.apply(this);
+        this.shadowRoot.innerHTML = templateService.getTemplate.apply(this);
 
         this.size = 25;
         this.pageIndex = 0;
+        this.filters = new Map([]);
 
         this.thead = this.shadowRoot.querySelector('thead');
         this.tbody = this.shadowRoot.querySelector('tbody');
@@ -39,14 +39,18 @@ customElements.define('lazy-table', class extends HTMLElement {
 
         if (value.length) {
             const inputListenerCallback = (input) => {
-                // TODO: keep track of filter on multiple fields,
+                const key = input.getAttribute('data-key');
+
+                if (input.value) this.filters.set(key, input.value);
+                else this.filters.delete(key);
+
                 this.csvWorker.postMessage({
                     type: 'search',
-                    key: input.getAttribute('data-key'),
-                    value: input.value
+                    filters: this.filters
                 })
             }
-            const nodes = lazyTableService.generateTableHeaderNodes(value, inputListenerCallback);
+
+            const nodes = templateService.generateTableHeaderNodes(value, inputListenerCallback);
             this.thead.append(...nodes);
         }
     }
@@ -59,7 +63,7 @@ customElements.define('lazy-table', class extends HTMLElement {
     }
 
     loadPage(values) {
-        this.tbody.append(...lazyTableService.generateTableRowNodes(values));
+        this.tbody.append(...templateService.generateTableRowNodes(values));
         this.intersectionObserver.observe(this.tbody.lastElementChild);
     }
 

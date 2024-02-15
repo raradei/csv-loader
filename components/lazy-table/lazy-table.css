@@ -1,3 +1,7 @@
+.overflow-auto {
+    overflow: auto;
+}
+
 .hidden {
     display: none;
 }
@@ -5,6 +9,14 @@
 .flex-column {
     display: flex;
     flex-direction: column;
+}
+
+.flex-grow {
+    flex-grow: 1;
+}
+
+.d-block {
+    display: block;
 }
 
 .w-full {

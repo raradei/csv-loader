@@ -1,4 +1,24 @@
-export const lazyTableService = {
+export default {
+    getTemplate() {
+        return `
+            <style> @import url(${new URL('./lazy-table.css', import.meta.url)}); </style>
+        
+            <div class="flex-column">
+                <label for="file-selector">Upload CSV</label>
+                <input id="file-selector" type="file" accept="${this.ACCEPTED_FILE_TYPE}">
+            </div>
+                
+            <progress class="hidden w-full" value="0" max="100"></progress>
+            
+            <div class="overflow-auto">
+                <table>
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        `;
+    },
+
     generateTableHeaderNodes(values, inputListenerCallback) {
         return values.map((header, i) => {
             const node = document.createElement('th');
@@ -6,14 +26,12 @@ export const lazyTableService = {
             const input = document.createElement('input');
 
             label.innerText = header.label;
+            label.classList.add('d-block');
             input.type = 'text';
             input.setAttribute('data-key', header.key);
-            input.addEventListener('input', () => {
-                inputListenerCallback(input);
-            })
+            input.addEventListener('input', () => inputListenerCallback(input))
 
             node.append(label, input);
-
             return node;
         });
     },
