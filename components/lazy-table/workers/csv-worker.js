@@ -1,16 +1,20 @@
-onmessage = ({ data }) => {
-    if (data.type === 'loadFile') loadFile(data.file, data.pageSize);
-    if (data.type === 'loadPageValues') loadPage(data.pageIndex);
-    if (data.type === 'search') search(data.filters);
+import { StorageClientFactory } from "../storage-clients/storage-client.factory.js";
+
+let storageClient = null;
+
+self.onmessage = async ({ data: { type, value } }) => {
+    if (type === 'loadFile') await loadFile(value);
+    if (type === 'loadPageValues') await loadPage(value);
+    if (type === 'filter') await filterData(value);
 }
 
 /**
  * @param {File} file
- * @param {Number} pageSize
  */
-const loadFile = (file, pageSize) => {
+const loadFile = async (file) => {
+    if (!storageClient) storageClient = await StorageClientFactory.getStorageClient();
+
     const reader = new FileReader();
-    self.pageSize = pageSize
 
     reader.onprogress = onprogressHandler;
     reader.onload = onloadHandler;
@@ -19,6 +23,8 @@ const loadFile = (file, pageSize) => {
 
 /**  Emits the progress when loading the file
  * @param {ProgressEvent<FileReader>} event
+ * @param {boolean} loaded
+ * @param {number} total
  */
 const onprogressHandler = ({ loaded, total }) => postMessage({
     type: 'progress',
@@ -27,58 +33,38 @@ const onprogressHandler = ({ loaded, total }) => postMessage({
 
 /**  Emits the progress when loading the file
  * @param {ProgressEvent<FileReader>} event
+ * @param {string} result
  */
 const onloadHandler = ({ target: { result } }) => {
     const [rawHeaders, ...rawValues] = result.trimEnd().split('\r\n');
     const headers = rawHeaders.split(',').map(label => ({ label, key: toPascalCase(label) }));
+    const fileValues = rawValues.map(csvRowToObject(headers));
 
-    self.lastPageIndex = Math.round(rawValues.length / pageSize - 1);
-    self.fileValues = rawValues.slice(0, pageSize).map(csvRowToObject(headers));
+    postMessage({ type: 'fileLoaded', value: { headers } });
 
-    postMessage({ type: 'fileLoaded', value: { headers, values: self.fileValues } });
-
-    if (self.lastPageIndex) {
-        self.fileValues = self.fileValues.concat(rawValues.slice(pageSize).map(csvRowToObject(headers)));
-    }
-
-    self.currentValuesRef = self.fileValues;
+    storageClient.store(fileValues);
 };
 
 /**  Loads the page at the specified index
  * @param {number} pageIndex
+ * @param {number} size
+ * @param {Map<string, object>} filters
  */
-const loadPage = (pageIndex) => {
-    if (pageIndex <= self.lastPageIndex) {
-        const startIndex = pageIndex * self.pageSize;
-        const endIndex = startIndex + self.pageSize;
-
-        postMessage({
-            type: 'pageValuesLoaded',
-            value: {
-                pageValues: self.currentValuesRef.slice(startIndex, endIndex),
-                lastPage: pageIndex === self.lastPageIndex
-            },
-        });
-    }
+const loadPage = async ({ pageIndex, size, filters }) => {
+    postMessage({
+        type: 'pageValuesLoaded',
+        value: await storageClient.getEntries(pageIndex + 1, size, filters)
+    });
 }
 
 /**  Filters loaded data and emits the first page of the results
  * @param {Map<string, object>} filters
+ * @param {number} size
  */
-const search = (filters) => {
-    self.currentValuesRef = self.fileValues.filter(obj => {
-        for (let [key, value] of filters) {
-            if (!obj[key].includes(value)) return false;
-        }
-
-        return true;
-    });
-
-    self.lastPageIndex = Math.round(self.currentValuesRef.length / self.pageSize - 1);
-
+const filterData = async ({ filters, size }) => {
     postMessage({
-        type: 'searchResults',
-        value: self.currentValuesRef.slice(0, self.pageSize)
+        type: 'filterResults',
+        value: await storageClient.getEntries(1, size, filters)
     });
 }
 

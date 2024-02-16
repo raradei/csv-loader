@@ -28,15 +28,20 @@ customElements.define('lazy-table', class extends HTMLElement {
         this.intersectionObserver = new IntersectionObserver(([entry]) => {
             if (entry.isIntersecting) {
                 this.pageIndex += 1;
-                this.csvWorker.postMessage({ type: 'loadPageValues', pageIndex: this.pageIndex })
-                this.intersectionObserver.unobserve(entry.target);
+                this.csvWorker.postMessage({
+                    type: 'loadPageValues',
+                    value: {
+                        pageIndex: this.pageIndex,
+                        size: this.size,
+                        filters: this.filters
+                    }
+                })
+                this.intersectionObserver.disconnect();
             }
         });
     }
 
     setHeaders(value) {
-        this.thead.replaceChildren();
-
         if (value.length) {
             const inputListenerCallback = (input) => {
                 const key = input.getAttribute('data-key');
@@ -45,8 +50,11 @@ customElements.define('lazy-table', class extends HTMLElement {
                 else this.filters.delete(key);
 
                 this.csvWorker.postMessage({
-                    type: 'search',
-                    filters: this.filters
+                    type: 'filter',
+                    value: {
+                        filters: this.filters,
+                        size: this.size
+                    }
                 })
             }
 
@@ -55,31 +63,42 @@ customElements.define('lazy-table', class extends HTMLElement {
         }
     }
 
-    setValues(value) {
-        this.tbody.replaceChildren();
-        this.pageIndex = 0;
-
-        if (value.length) this.loadPage(value);
+    setValues(result) {
+        this.clearTableValues();
+        if (result.entries.length) this.loadPageResults(result);
     }
 
-    loadPage(values) {
-        this.tbody.append(...templateService.generateTableRowNodes(values));
-        this.intersectionObserver.observe(this.tbody.lastElementChild);
+    clearTableValues() {
+        this.values = [];
+        this.pageIndex = 0;
+        this.tbody.replaceChildren();
+    }
+
+    clearTableHeaders() {
+        this.headers = [];
+        this.thead.replaceChildren();
+    }
+
+    loadPageResults(result) {
+        this.tbody.append(...templateService.generateTableRowNodes(result.entries));
+        if (!result.done) this.intersectionObserver.observe(this.tbody.lastElementChild);
     }
 
     csvWorkerHandler = ({ data: { type, value } }) => {
         if (type === 'fileLoaded') {
             this.setHeaders(value.headers);
-            this.setValues(value.values);
             this.progress.classList.toggle('hidden');
+            this.csvWorker.postMessage({
+                type: 'loadPageValues',
+                value: { pageIndex: this.pageIndex, size: this.size }
+            })
         }
 
         if (type === 'pageValuesLoaded') {
-            this.loadPage(value.pageValues);
-            if (value.lastPage) this.intersectionObserver.disconnect();
+            this.loadPageResults(value);
         }
 
-        if (type === 'searchResults') {
+        if (type === 'filterResults') {
             this.setValues(value);
         }
 
@@ -95,10 +114,10 @@ customElements.define('lazy-table', class extends HTMLElement {
                 throw Error(`Uploaded file is ${file.type} instead of ${this.ACCEPTED_FILE_TYPE}`);
             }
 
-            this.values = [];
-            this.headers = [];
+            this.clearTableHeaders()
+            this.clearTableValues();
             this.progress.classList.toggle('hidden');
-            this.csvWorker.postMessage({ type: 'loadFile', file, pageSize: this.size });
+            this.csvWorker.postMessage({ type: 'loadFile', value: file });
         }
     }
 
