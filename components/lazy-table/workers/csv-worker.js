@@ -13,7 +13,6 @@ self.onmessage = async ({ data: { type, value } }) => {
  */
 const loadFile = async (file) => {
     if (!storageClient) storageClient = await StorageClientFactory.getStorageClient();
-
     const reader = new FileReader();
 
     reader.onprogress = onprogressHandler;
@@ -98,10 +97,25 @@ const toPascalCase = (str) => {
  * @returns {function(csvRow: string): object}
  */
 const csvRowToObject = (headers) => (csvRow) => {
+    let extraIdxVal = 0;
+    let doubleQuotesWord = '';
+
     return csvRow.split(',').reduce((acc, val, rIdx) => {
-        // TODO: Handle string that contains "
-        let key = headers[rIdx] ? headers[rIdx].key : headers[headers.length - 1].key;
-        acc[key] = val;
+        const isInsideWord = val[0] === '"' || !!doubleQuotesWord;
+        const isWordFinished = val[val.length - 1] === '"';
+
+        if (isInsideWord) {
+            doubleQuotesWord += val;
+            extraIdxVal++;
+        }
+
+        if (isWordFinished) {
+            extraIdxVal--;
+            val = doubleQuotesWord.slice(1, doubleQuotesWord.length - 1);
+            doubleQuotesWord = '';
+        }
+
+        if (!isInsideWord || (isInsideWord && isWordFinished)) acc[headers[rIdx - extraIdxVal].key] = val;
         return acc;
     }, {})
 }
