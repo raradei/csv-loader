@@ -10,11 +10,13 @@ export default {
                 
             <progress class="hidden w-full" value="0" max="100"></progress>
             
-            <div class="overflow-auto">
+            <div class="sticky-table-container">
                 <table>
                     <thead></thead>
                     <tbody></tbody>
                 </table>
+                
+<!--                <button class="scroll-top">^</button>-->
             </div>
         `;
     },
@@ -26,8 +28,9 @@ export default {
             const input = document.createElement('input');
 
             label.innerText = header.label;
-            label.classList.add('d-block');
+            label.classList.add('d-block', 'text-nowrap');
             input.type = 'text';
+            input.classList.add('w-full', 'border-box');
             input.setAttribute('data-key', header.key);
             input.addEventListener('input', () => inputListenerCallback(input))
 

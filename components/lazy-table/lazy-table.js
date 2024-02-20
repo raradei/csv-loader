@@ -25,20 +25,22 @@ customElements.define('lazy-table', class extends HTMLElement {
             { type: 'module' }
         );
 
-        this.intersectionObserver = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting) {
-                this.pageIndex += 1;
-                this.csvWorker.postMessage({
-                    type: 'loadPageValues',
-                    value: {
-                        pageIndex: this.pageIndex,
-                        size: this.size,
-                        filters: this.filters
-                    }
-                })
-                this.intersectionObserver.disconnect();
-            }
-        });
+        this.intersectionObserver = new IntersectionObserver(this.intersectionObserverHandler);
+    }
+
+    intersectionObserverHandler = ([entry]) => {
+        if (entry.isIntersecting) {
+            this.pageIndex += 1;
+            this.csvWorker.postMessage({
+                type: 'loadPageValues',
+                value: {
+                    pageIndex: this.pageIndex,
+                    size: this.size,
+                    filters: this.filters
+                }
+            })
+            this.intersectionObserver.disconnect();
+        }
     }
 
     setHeaders(value) {

@@ -1,5 +1,27 @@
-.overflow-auto {
+:host {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 500px;
+}
+
+.scroll-top {
+    position: absolute;
+    bottom: 25px;
+    right: 50px;
+}
+
+.sticky-table-container {
     overflow: auto;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+}
+
+.sticky-table-container thead {
+    position: sticky;
+    inset-block-start: 0;
+    background-color: var(--primary-color);
 }
 
 .hidden {
@@ -21,4 +43,12 @@
 
 .w-full {
     width: 100%;
+}
+
+.border-box {
+    box-sizing: border-box;
+}
+
+.text-nowrap {
+    text-wrap: nowrap;
 }
