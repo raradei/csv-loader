@@ -1,4 +1,3 @@
-import createIndexedDBClient from "./indexed-db-client.js";
 import createInMemoryClient from "./in-memory-client.js";
 
 export class StorageClientFactory {

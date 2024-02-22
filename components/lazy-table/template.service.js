@@ -16,7 +16,7 @@ export default {
                     <tbody></tbody>
                 </table>
                 
-<!--                <button class="scroll-top">^</button>-->
+                <button class="hidden scroll-top">^</button>
             </div>
         `;
     },
